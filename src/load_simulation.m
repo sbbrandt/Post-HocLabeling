@@ -1,4 +1,40 @@
 function [epo_sources,Ax] = load_simulation(eeg_data, varargin)
+% load_simulation - Post-hoc labelled dataset generation
+%
+% Generates target variables of hidden oscillatory sources from arbitrary
+% EEG recordings
+%
+%Synopsis:
+% [epo_sources,Ax] = load_simulation(eeg_data, <OPT>)
+%
+%Arguments:
+% eeg_data    - data structure containing:
+%               cnt: Data structure with continuous EEG data (BBCI_toolbox
+%               format)
+%               vmrk: (Arbitrary) markers to segment cnt data (BBCI_toolbox
+%               format)
+%               iart: Indices of markers in vmrk which are to be rejected
+%               due to artifacts
+%
+% OPT - struct or property/value list of optional properties:
+%  .file_headModel - full file name of the head model file
+%  .ford - order of the butterworth filter to perform frequency filtering
+%  .cFreq - central frequency of the target oscillatory source
+%  .wFreq - width of the band of the target oscillatory source
+%  .winddowLength - length of the segments to extract from cnt
+%  .type - Type of label generation (can be 'hd' for head model or 'ica')
+%  .select_sources - number of source to return, 'all' for return all
+%  sources computed
+
+%Returns:
+% epo_sources  - segmented version of the envelop of the sources, to be
+% used as labels
+% Ax           - spatial patterns corresponding to each of the sources in
+% epo_sources
+% 
+% References:
+%
+% soon
 
 global BTB
 
@@ -7,12 +43,11 @@ if ~isstruct(varargin)
 end
 
 options = set_defaults(options,...
-    'file_headModel', fullfile('data/sa_nyhead_simplified.mat'), ...
+    'file_headModel', fullfile('data/sa_nyhead_simplified.mat'), ... % location of the head 
     'ford', 5, ...
     'cFreq', [10] , ...
     'wFreq', [4], ...
     'windowLength', 1000, ...
-    'eventSpacing', 1000,...
     'N_compICA', 20,...
     'type', 'hd', ...
     'select_sources', 'all');
