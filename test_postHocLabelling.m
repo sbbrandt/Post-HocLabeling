@@ -6,9 +6,11 @@
 
 clear; close all; clc
 addpath('src')
+addpath(fullfile('external','bbci_public-master'))
+startup_bbci_toolbox()
 
 %% load eeg data and generate set of possible target sources (post-hoc labeling)
-subject_str = 'S7';
+subject_str = 'S2';
 options = struct(...
     'file_headModel', fullfile('data/sa_nyhead_simplified.mat'), ...
     'ford', 5, ...
@@ -16,7 +18,7 @@ options = struct(...
     'wFreq', [4], ...
     'windowLength', 1000, ...
     'N_compICA', 20,...
-    'type', 'ica', ...
+    'type', 'hd', ...
     'select_sources', 'all');
 
 eeg_data = load(fullfile('data',subject_str));
@@ -30,6 +32,7 @@ epo = proc_selectEpochs(epo, 'not', eeg_data.iart);
 
 %% Train and apply SPoC
 close all
+rng(111)
 % select random source as target and extract labels
 ix_targetIndex = randi(size(epo_sources.x,2));
 epo_target = proc_selectChannels(epo_sources,ix_targetIndex);
@@ -51,7 +54,6 @@ a_zest = A_est(:,1);
 epo_targetPred= proc_linearDerivation(epo_val, W(:,1), 'prependix','spoc');
 
 % get performance measurements
-
 % correlation rho
 z_val = z(ix_val);
 z_pred = squeeze(var(epo_targetPred.x,[],1));
@@ -74,11 +76,12 @@ fprintf('Performance: Angle alpha=%.4f\n ',alpha)
 
 % plot original and estimated spatial patterns
 mnt = mnt_setElectrodePositions(Ax.clab(ix_order_channels));
+% mnt = mnt_setElectrodePositions(epo.clab);
 figure;
-subplot(1,2,1); plot_scalp(mnt, a_z, 'ScalePos', 'none'); 
+subplot(1,2,1); plot_scalp(mnt, a_z, 'ScalePos', 'none');
 title('original sp')
 
-subplot(1,2,2); plot_scalp(mnt, double(a_zest(val_ch)), 'ScalePos', 'none'); 
+subplot(1,2,2); plot_scalp(mnt, double(a_zest(val_ch)), 'ScalePos', 'none');
 title('estimated sp')
 
 

@@ -9,18 +9,21 @@ end
 
 function [epo_ica_mara, Ax] = extract_sourceICA(epo_narrow, options)
 
-
-[epo_ica, W_ica, A_ica] = proc_fastICA(epo_narrow, 'fasticaParams',...
+cnt_narrow = epo_narrow;
+cnt_narrow.x = custom_epo2cnt(epo_narrow.x,'Ne',size(epo_narrow.x,3));
+[cnt_ica, W_ica, A_ica] = proc_fastICA(cnt_narrow, 'fasticaParams',...
     {'verbose', 'on','displayMode','off','numOfIC',options.N_compICA});
 
-cnt_ica = epo_ica;
-cnt_ica.x = custom_epo2cnt(epo_ica.x,'Ne',size(epo_ica.x,3));
-[goodcomp, info] = proc_MARA(cnt_ica,epo_ica.clab,A_ica);
+epo_ica = cnt_ica;
+epo_ica.x = custom_epo2cnt(cnt_ica.x,'Ne',size(epo_narrow.x,3));
+
+[~, info] = proc_MARA(cnt_ica,epo_ica.clab,A_ica);
+goodcomp = find(info.out_p < 1e-8);
 epo_ica_mara = proc_selectChannels(epo_ica, goodcomp);
 
 Ax = struct;
-Ax.Ax_all = A_ica;
-Ax.W_ica = W_ica;
+Ax.Ax_all = A_ica(:,goodcomp);
+Ax.W_ica = W_ica(:,goodcomp);
 Ax.clab = epo_narrow.clab;
 end
 
