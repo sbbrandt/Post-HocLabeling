@@ -18,26 +18,31 @@ options = struct(...
     'wFreq', [4], ...
     'windowLength', 1000, ...
     'N_compICA', 20,...
-    'type', 'hd', ...
-    'select_sources', 'all');
-
+    'type', 'ica', ...
+    'power_quantile','all',...
+    'discrete_quantiles', [0.25,0.75]);
+    %'select_sources', 'all');
+rng('shuffle')
 eeg_data = load(fullfile('data',subject_str));
 [epo_sources, Ax] = load_simulation(eeg_data, options);
 
 %% filter EEG data to target frequency bands
 [zfilt,pfilt,kfilt] = butter(5,[8,12]/(eeg_data.cnt.fs/2));
-cnt_filt = proc_filt(eeg_data.cnt,zfilt,pfilt,kfilt);
+[sos] = zp2sos(zfilt,pfilt,kfilt);
+%cnt_filt = proc_filtfilt(eeg_data.cnt,zfilt,pfilt,kfilt);
+cnt_filt = proc_filtfilt(eeg_data.cnt,sos);
+
 epo = proc_segmentation(cnt_filt, eeg_data.vmrk, [0,1000]);
 epo = proc_selectEpochs(epo, 'not', eeg_data.iart);
 
 %% Train and apply SPoC
 close all
-rng(111)
+%rng(111)
 % select random source as target and extract labels
 ix_targetIndex = randi(size(epo_sources.x,2));
 epo_target = proc_selectChannels(epo_sources,ix_targetIndex);
 z = squeeze(mean(epo_target.x,1));
-epo.y = z';
+epo.y = log(z');
 
 % split train/test set
 Ne = size(epo.x,3);
@@ -56,7 +61,7 @@ epo_targetPred= proc_linearDerivation(epo_val, W(:,1), 'prependix','spoc');
 % get performance measurements
 % correlation rho
 z_val = z(ix_val);
-z_pred = squeeze(var(epo_targetPred.x,[],1));
+z_pred = log(squeeze(var(epo_targetPred.x,[],1)));
 rho = corrcoef(z_val,z_pred);
 rho = rho(1,2);
 fprintf('Performance: Correlation rho=%.4f\n ',rho)

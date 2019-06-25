@@ -1,4 +1,4 @@
-function [epo_sources,Ax] = load_simulation(eeg_data, varargin)
+function [epo_sources,Ax, options] = load_simulation(eeg_data, varargin)
 % load_simulation - Post-hoc labelled dataset generation
 %
 % Generates target variables of hidden oscillatory sources from arbitrary
@@ -50,7 +50,9 @@ options = set_defaults(options,...
     'windowLength', 1000, ...
     'N_compICA', 20,...
     'type', 'hd', ...
-    'select_sources', 'all');
+    'select_sources', 'random',...
+    'power_quantile', 'random',...
+    'discrete_quantiles', 'none');
 
 cnt = eeg_data.cnt;
 iart = eeg_data.iart;
@@ -73,24 +75,57 @@ epo_narrow = proc_segmentation(cnt_narrow, vmrk, ....
 
 %% Compute sources
 [epo_sources, Ax] = extract_sources(epo_narrow, options.type, options);
+Ne = size(epo_sources.x, 3);
 Ns = size(epo_sources.x, 2);
 
 %% Select sources (or return all)
-if ischar(options.select_sources)
-    idx_tSource = 1:Ns;
-elseif isnumeric(options.select_sources)
-    idx_tSource = options.select_sources;    
-    epo_sources = proc_selectEpochs(epo_sources, idx_tSource);
+
+if ~isstr(options.power_quantile)
+    cuts = quantile(Ax.scores,options.power_quantile);
+    wahl = find((Ax.scores > cuts(1)) & (Ax.scores <= cuts(2)));
+    idx_tSource = wahl(randi(length(wahl)))
+    disp('ignoring options.select_sources')
+else 
+    try
+        if strcmp(options.power_quantile,'random')
+            idx_tSource = randi(Ns);
+        elseif strcmp(options.power_quantile,'all')
+            idx_tSource = 1:Ns;
+        elseif strcmp(options.power_quantile, 'index')
+            idx_tSource = options.select_sources;  
+        end        
+    catch causeException        
+        msgID = 'Invalid Option for quantile';
+        msg = ['Dont know what to do with ',options.power_quantile];
+        baseException = MException(msgID,msg);
+        baseException = addCause(baseException,causeException);
+        throw(baseException)        
+    end
 end
 
-%% Obtain envelope
-Ne = size(epo_sources.x,3);
+
+%% get target's score quantile
+% power_all = squeeze(mean(var(epo_sources.x,[], 1),2));
+% power_target = power_all(idx_tSource);
+scores_all = Ax.scores;
+scores_target = Ax.scores(idx_tSource);
+perc = mean(scores_all <= scores_target);
+options.power_percentile = perc;
+options.power_quartile = round(perc*3);
+options.power_tertiles = round(perc*2);
+
+Ax.charact.score_percentile = perc;
+Ax.charact.power_quartile = floor(perc*3);
+Ax.charact.power_tertiles = floor(perc*2);
+
+epo_sources = proc_selectChannels(epo_sources, idx_tSource);
+%% Obtain target envelope
 for idx_s = 1:length(idx_tSource)
      cs_target = custom_epo2cnt(epo_sources.x(:,idx_s,:));
      cs_target = abs(hilbert(cs_target));
      epo_sources.x(:,idx_s,:) = custom_epo2cnt(cs_target,'Ne',Ne);
 end     
 
-
+%%
 
 end

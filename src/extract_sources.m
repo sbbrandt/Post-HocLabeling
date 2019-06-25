@@ -5,6 +5,22 @@ switch type
     case 'ica'
         [epo_sources, Ax] = extract_sourceICA(epo_narrow, options);
 end
+
+
+%characterize sources according to average power power fluctuation width
+z = var(epo_sources.x,[],1);
+sources_mean = mean(z,3);
+sources_var = var(z,[],3);
+
+charact = struct;
+charact.sources_mean = sources_mean;
+charact.source_var = sources_var;
+
+% score sources acourding to relative variance of the source
+Ax.charact = charact;
+Ax.scores = sources_var;
+% Ax.z;
+
 end
 
 function [epo_ica_mara, Ax] = extract_sourceICA(epo_narrow, options)
@@ -14,17 +30,39 @@ cnt_narrow.x = custom_epo2cnt(epo_narrow.x,'Ne',size(epo_narrow.x,3));
 [cnt_ica, W_ica, A_ica] = proc_fastICA(cnt_narrow, 'fasticaParams',...
     {'verbose', 'on','displayMode','off','numOfIC',options.N_compICA});
 
+Nc = size(cnt_narrow.x, 2);
+
+% compute average similarity of each ica component and scale accordingly.
+simm = nan(options.N_compICA,1);
+for ix_ica = 1:options.N_compICA
+    c_simm = 0;
+    for ix_c = 1: Nc
+        c_ica = cnt_ica.x(:,ix_ica);
+        c_x = cnt_narrow.x(:,ix_c);
+        c_simm = c_simm + dot(c_ica,c_x);
+    end
+    simm(ix_ica) = c_simm;
+end
 epo_ica = cnt_ica;
+epo_ica.x = normc(epo_ica.x)*diag(simm);
 epo_ica.x = custom_epo2cnt(cnt_ica.x,'Ne',size(epo_narrow.x,3));
 
 [~, info] = proc_MARA(cnt_ica,epo_ica.clab,A_ica);
 goodcomp = find(info.out_p < 1e-8);
+
 epo_ica_mara = proc_selectChannels(epo_ica, goodcomp);
+
+
+
+W_ica = normc(W_ica);
+% scores = var(cnt_narrow.x*W_ica,[],1);
 
 Ax = struct;
 Ax.Ax_all = A_ica(:,goodcomp);
-Ax.W_ica = W_ica(:,goodcomp);
+Ax.W_ica = W_ica;
 Ax.clab = epo_narrow.clab;
+% Ax.scores = scores;
+% Ax.scores_unnormalized = scores_unnormalized;
 end
 
 function [epo_sources, Ax] = extract_sourceHD(epo_narrow, options)
@@ -38,10 +76,13 @@ x_concat = custom_epo2cnt(epo_narrow.x);
 x_concat = custom_epo2cnt(epo_narrow.x);
 
 s_allNoEnv = single(x_concat)*single(inv_operator)';
+%Ax.scores = mean(s_allNoEnv.^2,2);
+% Ax.scores = var(s_allNoEnv.^2,[],1);
 s_allNoEnv = custom_epo2cnt(s_allNoEnv,'Ne',Ne);
 epo_sources = epo_narrow;
 epo_sources.x = s_allNoEnv;
 epo_sources.clab = strread(num2str(1:size(s_allNoEnv,2)),'%s');
+
 
 end
 
