@@ -22,13 +22,6 @@ power_quantile = cfg.power_quantile;
 discrete_quantile = cfg.discrete_quantiles;
 eeg_data_file=cfg.eeg_data_file;
 file_name_save=cfg.file_name_save;
-%Ne = cfg.ne;
-%eta = cfg.eta;
-
-%% get random from .../S1-S7, if path is .../random
-%if ismember('random',split(eeg_data_file,'/'))
-%    eeg_data_file = join([eeg_data_file(1:end-6),'S',string(randi(7))],'');
-%end
 
 %%
 options = struct(...
@@ -64,22 +57,8 @@ epo_sources = proc_selectEpochs(epo_sources,complete);
 
 cnt=eeg_data.cnt;
 vmrk = mrk_selectEvents(vmrk,complete);
-% select data length
-% if Ne~=0
-%     epo_sources.x = epo_sources.x(:,:,1:Ne);
-%     epo_sources.y = epo_sources.y(1:Ne);
-%     epo_sources.event.desc(end+1-Ne:end);
-%     epo_sources.mrk_info.event.desc(end+1-Ne:end);
-%     vmrk.y = vmrk.y(1:Ne);
-%     vmrk.time = vmrk.time(1:Ne);
-%     vmrk.event.desc(end+1-Ne:end);
-% end
-% add noise
-% if eta~=0
-%     epo_sources.x = epo_sources.x + (1-(1-eta)^2)/(1-eta)^2 ...
-%         *var(mean(epo_sources.x))*randn(1,1,size(epo_sources.x,3));
-% end
-%%
+
+
 save(file_name_save,'cnt','vmrk','epo_sources','window_offset', 'winlength');
 %ntrials = length(eeg_data.vmrk.time);
 %eeg_data.iart = unique([1,2,n_trials-1,n_trials-2,eeg_data.iart])
